@@ -14,8 +14,16 @@ use Illuminate\Support\Facades\DB;
 
 class MultipleTableImport implements ToCollection, WithHeadingRow
 {
+    protected $importLog;
+    protected $processedRows = 0;
+
+    public function __construct(ImportLog $importLog)
+    {
+        $this->importLog = $importLog;
+    }
     public function collection(Collection $rows)
     {
+        $this->importLog->update(['total_rows' => $rows->count()]);
         DB::transaction(function () use ($rows) {
             $rows->chunk(1000)->each(function ($chunk) {
                 // Process Departments
@@ -118,6 +126,11 @@ class MultipleTableImport implements ToCollection, WithHeadingRow
                 if (!empty($mobileData)) {
                     MobileNumber::insert($mobileData);
                 }
+
+                $this->importLog->update([
+                    'processed_rows' => $this->processedRows,
+                    'message' => "Processed {$this->processedRows} of {$this->importLog->total_rows} rows"
+                ]);
             });
         });
     }
